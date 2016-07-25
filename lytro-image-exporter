@@ -56,13 +56,13 @@ if (( ${+optns[--out-dir]} )) && [[ ! -d ${optns[--out-dir]} ]]; then
 	exit 1
 fi
 
-if (( ! ${+optns[--calibration]} && ! ${+optns[--quiet]} )); then
-	print -u2 "Warning: No calibration data provided"
-fi
-
 if [[ $# -eq 0 ]]; then
 	usage >&2
 	exit 1
+fi
+
+if (( ! ${+optns[--calibration]} && ! ${+optns[--quiet]} )); then
+	print -u2 "Warning: No calibration data provided"
 fi
 
 # The maximum non-infinity single-precision floating point value.
