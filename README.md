@@ -19,8 +19,8 @@ correctly preserve EXIF data.
 Options:
 -c / --calibration CALIBRATION Path to the calibration data. See `cameratool pull-cal-data --help`.
 -h / --help                    Print this help message
--j / --jobs NJOBS              Process NJOBS LFRs in parallel. Default: 7
--o / --out-dir DIRECTORY       The directory to output the TIFF files to. Default: `$PWD`
+-j / --jobs NJOBS              Process NJOBS LFRs in parallel. Default: 7 (number of cores - 1)
+-o / --out-dir DIRECTORY       The directory to output the TIFF files to. Default: current directory
 -q / --quiet                   Suppress warning messages
 -v / --verbose                 Print additional messages
 ```
