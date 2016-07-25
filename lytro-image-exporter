@@ -161,6 +161,9 @@ emulate zsh -L -o err_exit -o warn_create_global -o no_unset -c 'function inside
 emulate -R zsh -c 'autoload -Uz zargs'
 zargs -n2 -P${optns[--jobs]} -- "${lfr_files[@]}" -- inside_zargs_do process_lfp
 
+if (( ! ${+optns[--quiet]} )); then
+	echo "Processing EXIF data"
+fi
 # Copy the exif data
 exiftool -tagsfromfile %f.lfr -ext TIFF $TMPDIR
 
