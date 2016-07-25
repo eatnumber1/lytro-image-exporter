@@ -36,12 +36,12 @@ function usage {
 	correctly preserve EXIF data.
 
 	Options:
-		-c / --calibration CALIBRATION Path to the calibration data. See `cameratool pull-cal-data --help`.
-		-h / --help                    Print this help message
-		-j / --jobs NJOBS              Process NJOBS LFRs in parallel. Default: %d
-		-o / --out-dir DIRECTORY       The directory to output the TIFF files to. Default: `$PWD`
-		-q / --quiet                   Suppress warning messages
-		-v / --verbose                 Print additional messages
+	-c / --calibration CALIBRATION Path to the calibration data. See `cameratool pull-cal-data --help`.
+	-h / --help                    Print this help message
+	-j / --jobs NJOBS              Process NJOBS LFRs in parallel. Default: %d
+	-o / --out-dir DIRECTORY       The directory to output the TIFF files to. Default: `$PWD`
+	-q / --quiet                   Suppress warning messages
+	-v / --verbose                 Print additional messages
 	EOF
 	print -f "$usage_fmt\n" $PROGNAME $njobs
 }
