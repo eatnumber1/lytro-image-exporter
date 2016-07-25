@@ -3,7 +3,7 @@ emulate zsh -L -o err_exit -o warn_create_global -o no_unset
 #setopt xtrace
 zmodload -F zsh/zutil +b:zparseopts
 zmodload -F zsh/parameter +p:commands
-zmodload -F zsh/files +b:rm +b:mv
+zmodload -F zsh/files +b:rm +b:mv +b:mkdir
 readonly PROGNAME=${0##*/}
 
 typeset -i njobs
@@ -51,9 +51,15 @@ if (( ${+optns[--help]} )); then
 	exit
 fi
 
-if (( ${+optns[--out-dir]} )) && [[ ! -d ${optns[--out-dir]} ]]; then
-	usage >&2
-	exit 1
+if (( ${+optns[--out-dir]} )); then
+	if [[ -e ${optns[--out-dir]} ]]; then
+		if [[ ! -d ${optns[--out-dir]} ]]; then
+			usage >&2
+			exit 1
+		fi
+	else
+		mkdir ${optns[--out-dir]}
+	fi
 fi
 
 if [[ $# -eq 0 ]]; then
@@ -125,10 +131,6 @@ function exiftool {
 		exif_optns+=( -q )
 	fi
 	run command exiftool "${exif_optns[@]}"
-}
-
-function mv {
-	run command mv "$@"
 }
 
 function process_lfp {
