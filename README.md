@@ -10,18 +10,20 @@ The resulting images can be useful as thumbnails or indexes of your Lytro
 library without having to manually edit every photograph.
 
 ## Usage
-> Usage: lytro-image-exporter [OPTIONS] LFRS...
->
-> Creates TIFF images from LFR files. The resulting TIFF files will have everything in the scene in focus and will
-> correctly preserve EXIF data.
->
-> Options:
-> -c / --calibration CALIBRATION Path to the calibration data. See `cameratool pull-cal-data --help`.
-> -h / --help                    Print this help message
-> -j / --jobs NJOBS              Process NJOBS LFRs in parallel. Default: 7
-> -o / --out-dir DIRECTORY       The directory to output the TIFF files to. Default: `$PWD`
-> -q / --quiet                   Suppress warning messages
-> -v / --verbose                 Print additional messages
+```text
+Usage: lytro-image-exporter [OPTIONS] LFRS...
+
+Creates TIFF images from LFR files. The resulting TIFF files will have everything in the scene in focus and will
+correctly preserve EXIF data.
+
+Options:
+-c / --calibration CALIBRATION Path to the calibration data. See `cameratool pull-cal-data --help`.
+-h / --help                    Print this help message
+-j / --jobs NJOBS              Process NJOBS LFRs in parallel. Default: 7
+-o / --out-dir DIRECTORY       The directory to output the TIFF files to. Default: `$PWD`
+-q / --quiet                   Suppress warning messages
+-v / --verbose                 Print additional messages
+```
 
 ## Example
 Convert all `.lfr` files in the current directory to `.tiff` and put the
@@ -31,6 +33,6 @@ $ lytro-image-exporter *.lfr -o outdir -c cameras
 ```
 
 ## Dependencies
-[ZSH](http://www.zsh.org/) (included in OSX and many Linux distributions)
-[ExifTool](http://www.sno.phy.queensu.ca/~phil/exiftool/)
-[Lytro Power Tools Beta](https://www.lytro.com/imaging/power-tools)
+ * [ZSH](http://www.zsh.org/) (included in OSX and many Linux distributions)
+ * [ExifTool](http://www.sno.phy.queensu.ca/~phil/exiftool/)
+ * [Lytro Power Tools Beta](https://www.lytro.com/imaging/power-tools)
