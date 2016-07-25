@@ -29,21 +29,21 @@ typeset -r optns
 
 function usage {
 	local usage_fmt
-	read -r -d '' usage_fmt <<-"EOF" || :
-	Usage: %s [OPTIONS] LFRS...
+	read -r -d '' usage_fmt <<-EOF || :
+	Usage: $PROGNAME [OPTIONS] LFRS...
 
 	Creates TIFF images from LFR files. The resulting TIFF files will have everything in the scene in focus and will
 	correctly preserve EXIF data.
 
 	Options:
-	-c / --calibration CALIBRATION Path to the calibration data. See `cameratool pull-cal-data --help`.
+	-c / --calibration CALIBRATION Path to the calibration data. See "cameratool pull-cal-data --help".
 	-h / --help                    Print this help message
-	-j / --jobs NJOBS              Process NJOBS LFRs in parallel. Default: %d (number of cores - 1)
+	-j / --jobs NJOBS              Process NJOBS LFRs in parallel. Default: $njobs (number of cores - 1)
 	-o / --out-dir DIRECTORY       The directory to output the TIFF files to. Default: current directory
 	-q / --quiet                   Suppress warning messages
 	-v / --verbose                 Print additional messages
 	EOF
-	print -f "$usage_fmt\n" $PROGNAME $njobs
+	echo $usage_fmt
 }
 
 if (( ${+optns[--help]} )); then
@@ -54,6 +54,7 @@ fi
 if (( ${+optns[--out-dir]} )); then
 	if [[ -e ${optns[--out-dir]} ]]; then
 		if [[ ! -d ${optns[--out-dir]} ]]; then
+			print -u2 "Error: --out-dir (${optns[--out-dir]}) must be a directory"
 			usage >&2
 			exit 1
 		fi
@@ -63,6 +64,7 @@ if (( ${+optns[--out-dir]} )); then
 fi
 
 if [[ $# -eq 0 ]]; then
+	print -u2 "Error: No LFRs specified"
 	usage >&2
 	exit 1
 fi
