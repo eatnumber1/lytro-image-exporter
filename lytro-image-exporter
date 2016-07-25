@@ -1,0 +1,167 @@
+#!/bin/zsh
+emulate zsh -L -o err_exit -o warn_create_global -o no_unset
+#setopt xtrace
+zmodload -F zsh/zutil +b:zparseopts
+zmodload -F zsh/parameter +p:commands
+zmodload -F zsh/files +b:rm +b:mv
+readonly PROGNAME=${0##*/}
+
+typeset -i njobs
+if (( ${+commands[nproc]} )); then
+	njobs=$(nproc)
+else
+	njobs=$(sysctl -n hw.ncpu)
+fi
+(( njobs-- )) || :
+typeset -r njobs
+
+typeset -A optns
+optns[--jobs]=$njobs
+optns[--out-dir]=$PWD
+zparseopts -K -E -A optns -D -M -- \
+	-help h=-help \
+	-verbose v=-verbose \
+	-out-dir: o:=-out-dir \
+	-calibration: c:=-calibration \
+	-quiet q=-quiet \
+	-jobs j=-jobs
+typeset -r optns
+
+function usage {
+	local usage_fmt
+	read -r -d '' usage_fmt <<-"EOF" || :
+	Usage: %s [OPTIONS] LFRS...
+
+	Creates TIFF images from LFR files. The resulting TIFF files will have everything in the scene in focus and will
+	correctly preserve EXIF data.
+
+	Options:
+		-c / --calibration CALIBRATION Path to the calibration data. See `cameratool pull-cal-data --help`.
+		-h / --help                    Print this help message
+		-j / --jobs NJOBS              Process NJOBS LFRs in parallel. Default: %d
+		-o / --out-dir DIRECTORY       The directory to output the TIFF files to. Default: `$PWD`
+		-q / --quiet                   Suppress warning messages
+		-v / --verbose                 Print additional messages
+	EOF
+	print -f "$usage_fmt\n" $PROGNAME $njobs
+}
+
+if (( ${+optns[--help]} )); then
+	usage
+	exit
+fi
+
+if (( ${+optns[--out-dir]} )) && [[ ! -d ${optns[--out-dir]} ]]; then
+	usage >&2
+	exit 1
+fi
+
+if (( ! ${+optns[--calibration]} && ! ${+optns[--quiet]} )); then
+	print -u2 "Warning: No calibration data provided"
+fi
+
+if [[ $# -eq 0 ]]; then
+	usage >&2
+	exit 1
+fi
+
+# The maximum non-infinity single-precision floating point value.
+typeset -rF focus_spread=2147483647
+typeset -a lfr_files
+lfr_files=( "$@" )
+typeset -r lfr_files
+
+TMPDIR=$(mktemp -d -t $PROGNAME)
+readonly TMPDIR
+function cleanup {
+	typeset -i ret=$?
+	rm -rf $TMPDIR
+	return $ret
+}
+trap cleanup ZERR EXIT INT HUP TERM
+
+function run {
+	setopt local_options
+	if (( ${+optns[--verbose]} )); then
+		setopt xtrace
+	fi
+	"$@"
+}
+
+function lfptool {
+	local subcommand="$1"
+	shift
+	typeset -a lfptool_optns
+	lfptool_optns+=( "$@" )
+	if (( ${+optns[--calibration]} )); then
+		lfptool_optns+=( --calibration-in ${optns[--calibration]} )
+	fi
+
+	typeset -a cmd
+	cmd=( run command lfptool $subcommand $lfptool_optns )
+	if (( ${+optns[--verbose]} )); then
+		$cmd
+	else
+		$cmd > /dev/null
+	fi
+}
+
+function recipetool {
+	typeset -a cmd
+	cmd=( run command recipetool "$@" )
+	if (( ${+optns[--verbose]} )); then
+		$cmd
+	else
+		$cmd > /dev/null
+	fi
+}
+
+function exiftool {
+	typeset -a exif_optns
+	exif_optns=( "$@" )
+	if (( ${+optns[--verbose]} )); then
+		exif_optns+=( -v )
+	else
+		exif_optns+=( -q )
+	fi
+	run command exiftool "${exif_optns[@]}"
+}
+
+function mv {
+	run command mv "$@"
+}
+
+function process_lfp {
+	#setopt xtrace
+	local raw_file=$1
+	local raw_fn=${raw_file%.lfr}
+	local recipe_file=${raw_fn}_recipe.json
+
+	if (( ! ${+optns[--quiet]} )); then
+		echo "Processing $raw_file"
+	fi
+
+	# Create a recipe
+	lfptool raw --lfp-in $raw_file --recipe-out --dir-out $TMPDIR
+
+	# Modify the recipe to have maximum focus spread
+	recipetool view -i $TMPDIR/$recipe_file --focus-spread $focus_spread
+
+	# Output the image
+	lfptool raw --lfp-in $raw_file --recipe-in $TMPDIR/$recipe_file --dir-out $TMPDIR --image-out --threads 2
+}
+
+emulate zsh -L -o err_exit -o warn_create_global -o no_unset -c 'function inside_zargs_do {
+	# Need to reset traps inside of zargs. ZSH is supposed to do this automatically. Probably a ZSH bug.
+	trap - ZERR EXIT HUP INT TERM
+	"$@"
+}'
+emulate -R zsh -c 'autoload -Uz zargs'
+zargs -n2 -P${optns[--jobs]} -- "${lfr_files[@]}" -- inside_zargs_do process_lfp
+
+# Copy the exif data
+exiftool -tagsfromfile %f.lfr -ext TIFF $TMPDIR
+
+mv $TMPDIR/*.tiff ${optns[--out-dir]}
+
+# vim:ft=zsh
