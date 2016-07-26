@@ -36,3 +36,8 @@ $ lytro-image-exporter *.lfr -o outdir -c cameras
  * [ZSH](http://www.zsh.org/) (included in OSX and many Linux distributions)
  * [ExifTool](http://www.sno.phy.queensu.ca/~phil/exiftool/)
  * [Lytro Power Tools Beta](https://www.lytro.com/imaging/power-tools)
+
+## Known Bugs
+Providing identically named input files stored in different directories (e.g.
+`lytro-image-exporter a/foo.lfr b/foo.lfr`) will overwrite the first TIFF to
+finish processing with the second, in a non-deterministic order.
