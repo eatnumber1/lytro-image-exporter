@@ -138,7 +138,7 @@ function exiftool {
 function process_lfp {
 	#setopt xtrace
 	local raw_file=$1
-	local raw_fn=${raw_file%.lfr}
+	local raw_fn=${${raw_file%.lfr}##*/}
 	local recipe_file=${raw_fn}_recipe.json
 
 	if (( ! ${+optns[--quiet]} )); then
