@@ -69,15 +69,45 @@ if [[ $# -eq 0 ]]; then
 	exit 1
 fi
 
+function set_lfp_vars {
+	local lfp=${1:a}
+	local lfp_filename=${lfp##*/}
+	lfp_fn=${lfp_filename%.*}
+	lfp_ext=${lfp_filename##*.}
+	lfp_dir=${lfp%/*}
+}
+
+typeset -a lfp_files
+lfp_files=( "$@" )
+typeset -r lfp_files
+
+# Detect identically named files since we'll barf on those.
+() {
+	local lfp1 lfp2 lfp1_fn lfp2_fn
+	local lfp_fn lfp_ext lfp_dir
+	for lfp1 in $lfp_files; do
+		set_lfp_vars $lfp1
+		lfp1_fn=${lfp_fn}
+		for lfp2 in $lfp_files; do
+			if [[ $lfp1 == $lfp2 ]]; then
+				continue
+			fi
+			set_lfp_vars $lfp2
+			lfp2_fn=${lfp_fn}
+			if [[ $lfp1_fn == $lfp2_fn ]]; then
+				print -u2 "Error: Identically named files \"$lfp1\" and \"$lfp2\" cannot be processed simultaneously."
+				exit 1
+			fi
+		done
+	done
+}
+
 if (( ! ${+optns[--calibration]} && ! ${+optns[--quiet]} )); then
 	print -u2 "Warning: No calibration data provided"
 fi
 
 # The maximum non-infinity single-precision floating point value.
 typeset -rF focus_spread=2147483647
-typeset -a lfr_files
-lfr_files=( "$@" )
-typeset -r lfr_files
 
 TMPDIR=$(mktemp -d -t $PROGNAME.XXXXXXXXX)
 readonly TMPDIR
@@ -125,40 +155,42 @@ function recipetool {
 }
 
 function exiftool {
-	typeset -a exif_optns
-	exif_optns=( "$@" )
+	typeset -a exif_optns exif_added_optns
 	if (( ${+optns[--verbose]} )); then
-		exif_optns+=( -v )
+		exif_added_optns+=( -v )
 	else
-		exif_optns+=( -q )
+		exif_added_optns+=( -q )
 	fi
+	local opt
+	for opt in "$@"; do
+		if [[ $opt == -execute ]]; then
+			exif_optns+=( $exif_added_optns )
+		fi
+		exif_optns+=( $opt )
+	done
+	exif_optns+=( $exif_added_optns )
 	run command exiftool "${exif_optns[@]}"
 }
 
 function process_lfp {
 	#setopt xtrace
-	local raw_file=$1
-	local raw_fn=${${raw_file%.lfr}##*/}
-	local recipe_file=${raw_fn}_recipe.json
+	local lfp=$1
+	local lfp_fn lfp_ext lfp_dir
+	set_lfp_vars $lfp
+	local recipe_file=${lfp_fn}_recipe.json
 
 	if (( ! ${+optns[--quiet]} )); then
-		echo "Processing $raw_file"
+		echo "Processing $lfp"
 	fi
 
-	local TMPDIR=$TMPDIR
-	TMPDIR=$(mktemp -d $TMPDIR/lfp_scratch.XXXXXXXXX)
-
 	# Create a recipe
-	lfptool raw --lfp-in $raw_file --recipe-out --dir-out $TMPDIR
+	lfptool raw --lfp-in $lfp --recipe-out --dir-out $TMPDIR
 
 	# Modify the recipe to have maximum focus spread
 	recipetool view -i $TMPDIR/$recipe_file --focus-spread $focus_spread
 
 	# Output the image
-	lfptool raw --lfp-in $raw_file --recipe-in $TMPDIR/$recipe_file --dir-out $TMPDIR --image-out --threads 2
-
-	# Copy the EXIF data from the LFR to the TIFF
-	exiftool -tagsFromFile $raw_file -ext TIFF $TMPDIR/$raw_fn.tiff
+	lfptool raw --lfp-in $lfp --recipe-in $TMPDIR/$recipe_file --dir-out $TMPDIR --image-out --threads 2
 }
 
 emulate zsh -L -o err_exit -o warn_create_global -o no_unset -c 'function inside_zargs_do {
@@ -171,9 +203,24 @@ emulate -R zsh -c 'autoload -Uz zargs'
 	setopt local_traps
 	# zargs doesn't support ZERR traps correctly
 	trap - ZERR
-	zargs -n2 -P${optns[--jobs]} -- $lfr_files -- inside_zargs_do process_lfp
+	zargs -n2 -P${optns[--jobs]} -- $lfp_files -- inside_zargs_do process_lfp
 }
 
-mv $TMPDIR/lfp_scratch.*/*.tiff ${optns[--out-dir]}
+# Copy the EXIF data from the LFRs to the TIFFs
+if (( ! ${+optns[--quiet]} )); then
+	echo "Processing EXIF data"
+fi
+() {
+	typeset -a exiftool_optns
+	local lfp
+	local lfp_fn lfp_ext lfp_dir
+	for lfp in $lfp_files; do
+		set_lfp_vars $lfp
+		exiftool_optns+=( -tagsFromFile $lfp -ext TIFF $TMPDIR/$lfp_fn.tiff -execute )
+	done
+	exiftool $exiftool_optns
+}
+
+mv $TMPDIR/*.tiff ${optns[--out-dir]}
 
 # vim:ft=zsh
