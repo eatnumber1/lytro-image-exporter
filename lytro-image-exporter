@@ -24,7 +24,7 @@ zparseopts -K -E -A optns -D -M -- \
 	-out-dir: o:=-out-dir \
 	-calibration: c:=-calibration \
 	-quiet q=-quiet \
-	-jobs j=-jobs
+	-jobs: j:=-jobs
 typeset -r optns
 
 function usage {
