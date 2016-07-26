@@ -153,6 +153,9 @@ function process_lfp {
 
 	# Output the image
 	lfptool raw --lfp-in $raw_file --recipe-in $TMPDIR/$recipe_file --dir-out $TMPDIR --image-out --threads 2
+
+	# Copy the EXIF data from the LFR to the TIFF
+	exiftool -tagsFromFile $raw_file -ext TIFF $TMPDIR/$raw_fn.tiff
 }
 
 emulate zsh -L -o err_exit -o warn_create_global -o no_unset -c 'function inside_zargs_do {
@@ -161,13 +164,12 @@ emulate zsh -L -o err_exit -o warn_create_global -o no_unset -c 'function inside
 	"$@"
 }'
 emulate -R zsh -c 'autoload -Uz zargs'
-zargs -n2 -P${optns[--jobs]} -- "${lfr_files[@]}" -- inside_zargs_do process_lfp
-
-if (( ! ${+optns[--quiet]} )); then
-	echo "Processing EXIF data"
-fi
-# Copy the exif data
-exiftool -tagsfromfile %f.lfr -ext TIFF $TMPDIR
+() {
+	setopt local_traps
+	# zargs doesn't support ZERR traps correctly
+	trap - ZERR
+	zargs -n2 -P${optns[--jobs]} -- $lfr_files -- inside_zargs_do process_lfp
+}
 
 mv $TMPDIR/*.tiff ${optns[--out-dir]}
 
