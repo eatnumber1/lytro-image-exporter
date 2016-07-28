@@ -36,3 +36,4 @@ $ lytro-image-exporter *.lfr -o outdir -c cameras
  * [ZSH](http://www.zsh.org/) (included in OSX and many Linux distributions)
  * [ExifTool](http://www.sno.phy.queensu.ca/~phil/exiftool/)
  * [Lytro Power Tools Beta](https://www.lytro.com/imaging/power-tools)
+ * [LibTIFF](http://www.remotesensing.org/libtiff/)
