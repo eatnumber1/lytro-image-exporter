@@ -4,6 +4,7 @@ emulate zsh -L -o err_exit -o warn_create_global -o no_unset
 zmodload -F zsh/zutil +b:zparseopts
 zmodload -F zsh/parameter +p:commands
 zmodload -F zsh/files +b:rm +b:mv +b:mkdir
+zmodload -F zsh/stat +b:zstat
 readonly PROGNAME=${0##*/}
 
 typeset -i njobs
@@ -186,6 +187,44 @@ function exiftool {
 	run command exiftool "${exif_optns[@]}"
 }
 
+# Later elements will be preferred for files with the same size
+typeset -a compression_tests
+compression_tests=( zip lzw:2:p9 lzw:1:p9 )
+typeset -ra compression_tests
+
+function compress_lfp {
+	local lfp=$1
+
+	typeset -a outs
+	local ct
+	for ct in $compression_tests; do
+		tiffcp -c $ct $lfp $lfp.$ct
+		outs+=( $lfp.$ct )
+	done
+
+	typeset -a st
+	zstat -A st -n -- $outs
+	integer i size
+	typeset -A size_map
+	local name
+	for (( i = 1; i < ${#st}; i += 15 )); do
+		name=${st[$i]}
+		size=${st[$(( $i + 8 ))]}
+		size_map[${size}]=$name
+	done
+
+	local winner
+	typeset -a sizes
+	sizes=( ${(kn)size_map} )
+	winner=${size_map[${sizes[1]}]}
+
+	mv $winner $lfp
+
+	if [[ ${#outs} -ne 1 ]]; then
+		rm -f $outs
+	fi
+}
+
 function process_lfp {
 	#setopt xtrace
 	local lfp=$1
@@ -206,12 +245,8 @@ function process_lfp {
 	# Output the image
 	lfptool raw --lfp-in $lfp --recipe-in $recipe_file --dir-out $TMPDIR --image-out --threads 2
 
-	local image_file=$TMPDIR/${lfp_out_fn}.tiff
-
 	# Losslessly compress the image
-	tiffcp -c lzw:2:p9 $image_file $image_file.new
-
-	mv $image_file.new $image_file
+	compress_lfp $TMPDIR/${lfp_out_fn}.tiff
 }
 
 emulate zsh -L -o err_exit -o warn_create_global -o no_unset -c 'function inside_zargs_do {
